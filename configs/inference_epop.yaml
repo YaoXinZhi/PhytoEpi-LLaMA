@@ -1,0 +1,7 @@
+max_new_tokens: 8128
+repeat: 5
+temperature: 0.2
+top_p: 0.9
+min_p: 0.0
+top_k: 50
+

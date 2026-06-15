@@ -1,0 +1,17 @@
+model: meta-llama/Meta-Llama-3.1-8B
+token_budget: 1000000000
+plant_per_general: 4
+seed: 3407
+max_seq_length: 4096
+effective_batch_size: 16
+lora:
+  r: 128
+  alpha: 32
+  use_rslora: true
+optimization:
+  learning_rate: 5.0e-5
+  embedding_learning_rate: 5.0e-6
+  scheduler: cosine
+  warmup_ratio: 0.03
+  load_in_4bit: true
+
