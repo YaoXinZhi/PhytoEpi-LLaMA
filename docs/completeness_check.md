@@ -22,15 +22,6 @@ workflow on 2026-06-19.
 | Public examples | `data/examples/*.jsonl` |
 | EPOP paper and dataset citation | `CITATION.cff`, `docs/epop_dataset.md`, `data/epop/manifest.json`, `data/epop/citation.bib` |
 
-## Not Redistributed
-
-Raw EPOP documents, third-party IE corpora, RedPajama passages, PubTator/BioC
-text, model checkpoints, LoRA adapters, generated predictions, and internal
-cluster scripts are intentionally excluded. These assets are either licensed,
-large, private, or machine-specific. The public code takes all such paths as
-arguments. EPOP documents are represented through official DOI/URL metadata
-because their data-use terms prohibit redistribution or unauthorized sharing.
-
 ## Paper Consistency Notes
 
 - Default backbone is `unsloth/llama-3-8b-bnb-4bit`.

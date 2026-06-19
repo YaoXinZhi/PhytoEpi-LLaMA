@@ -6,11 +6,6 @@ PhytoEpi-LLaMA is the public reference workflow for continual pre-training
 (CPT), instruction fine-tuning (IFT), schema-constrained inference, dataset
 conversion, and EPOP relation-extraction evaluation for plant-health literature.
 
-This repository intentionally does not include private corpora, licensed EPOP
-documents, trained weights, generated outputs, API keys, scheduler scripts, or
-machine-specific paths. All data and model locations are supplied through
-command-line arguments.
-
 ## Paper Alignment
 
 | Paper component | Public implementation | Status |
@@ -22,7 +17,6 @@ command-line arguments.
 | EPOP dev held out from IFT | `configs/ift_all_ie.yaml` and conversion command | Included |
 | Repeated JSON extraction, 5 repeats, max 8128 tokens | `src/inference/run_schema_extraction.py` | Included |
 | JSON repair/parsing and relation evaluation | `src/phytoepi/json_utils.py`, `src/eval/evaluate_epop_relations.py` | Included |
-| Raw datasets/checkpoints/results | User-provided local paths | Not redistributed |
 
 The default backbone is `unsloth/llama-3-8b-bnb-4bit`, matching the current
 paper description. If you use a locally merged CPT or CPT+IFT checkpoint, pass
