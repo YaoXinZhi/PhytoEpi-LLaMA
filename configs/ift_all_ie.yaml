@@ -1,4 +1,4 @@
-model: meta-llama/Meta-Llama-3.1-8B
+model: unsloth/llama-3-8b-bnb-4bit
 seed: 26
 split_seed: 26
 dev_ratio: 0.10
@@ -12,4 +12,12 @@ optimization:
   learning_rate: 2.0e-5
   min_learning_rate: 3.0e-6
   early_stopping_patience: 3
-
+data:
+  included_sources:
+    - EPOP:train
+    - DP:train
+    - DP:dev
+    - BB4:train
+    - BB4:dev
+  held_out:
+    - EPOP:dev

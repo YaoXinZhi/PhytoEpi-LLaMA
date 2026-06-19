@@ -1,8 +1,12 @@
-"""Instruction fine-tuning with response-only loss masking."""
+"""Instruction fine-tuning with response-only loss masking.
+
+Developer: Xinzhi Yao.
+"""
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import random
 from pathlib import Path
@@ -10,18 +14,33 @@ from typing import Any
 
 
 RESPONSE_MARKER = "### Response:\n"
+DEFAULT_MODEL = "unsloth/llama-3-8b-bnb-4bit"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    with path.open() as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+    records: list[dict[str, Any]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON in {path} line {line_no}: {exc}") from exc
+    if not records:
+        raise ValueError(f"No training records found in {path}.")
+    return records
 
 
 def split_records(records: list[dict[str, Any]], dev_ratio: float, seed: int):
+    if not records:
+        raise ValueError("Cannot split an empty IFT dataset.")
+    if dev_ratio <= 0 or len(records) == 1:
+        return records, []
     rng = random.Random(seed)
     records = records[:]
     rng.shuffle(records)
-    n_dev = max(1, int(round(len(records) * dev_ratio)))
+    n_dev = min(len(records) - 1, max(1, int(round(len(records) * dev_ratio))))
     return records[n_dev:], records[:n_dev]
 
 
@@ -29,6 +48,10 @@ def build_prompt(record: dict[str, Any]) -> tuple[str, str]:
     instruction = str(record.get("instruction", "")).strip()
     text = str(record.get("input", record.get("text", ""))).strip()
     response = record.get("output", record.get("response", {}))
+    if not instruction:
+        raise ValueError("IFT record is missing `instruction`.")
+    if not text:
+        raise ValueError("IFT record is missing `input` or `text`.")
     if not isinstance(response, str):
         response = json.dumps(response, ensure_ascii=False)
     prompt = f"### Instruction:\n{instruction}\n\n### Input:\n{text}\n\n{RESPONSE_MARKER}"
@@ -37,7 +60,7 @@ def build_prompt(record: dict[str, Any]) -> tuple[str, str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="meta-llama/Meta-Llama-3.1-8B")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--train-jsonl", type=Path, required=True)
     parser.add_argument("--dev-jsonl", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -110,6 +133,31 @@ def main() -> None:
     )
     model = get_peft_model(model, lora_config)
 
+    def make_training_arguments(**kwargs):
+        signature = inspect.signature(TrainingArguments.__init__)
+        evaluation_strategy = kwargs.pop("evaluation_strategy")
+        strategy_key = (
+            "eval_strategy"
+            if "eval_strategy" in signature.parameters
+            else "evaluation_strategy"
+        )
+        kwargs[strategy_key] = evaluation_strategy
+        if "lr_scheduler_kwargs" not in signature.parameters:
+            kwargs.pop("lr_scheduler_kwargs", None)
+        if kwargs.get("lr_scheduler_kwargs") is None:
+            kwargs.pop("lr_scheduler_kwargs", None)
+        return TrainingArguments(**kwargs)
+
+    def scheduler_type_and_kwargs() -> tuple[str, dict[str, float] | None]:
+        try:
+            from transformers.trainer_utils import SchedulerType
+        except Exception:
+            return "cosine_with_min_lr", {"min_lr": args.min_learning_rate}
+        supported = {item.value for item in SchedulerType}
+        if "cosine_with_min_lr" in supported:
+            return "cosine_with_min_lr", {"min_lr": args.min_learning_rate}
+        return "cosine", None
+
     def tokenize(record: dict[str, Any]) -> dict[str, list[int]]:
         prompt, response = build_prompt(record)
         full_text = prompt + response + tokenizer.eos_token
@@ -121,22 +169,25 @@ def main() -> None:
         return encoded
 
     train_ds = Dataset.from_list(train_records).map(tokenize, remove_columns=list(train_records[0].keys()))
-    dev_ds = Dataset.from_list(dev_records).map(tokenize, remove_columns=list(dev_records[0].keys()))
+    dev_ds = None
+    if dev_records:
+        dev_ds = Dataset.from_list(dev_records).map(tokenize, remove_columns=list(dev_records[0].keys()))
 
-    training_args = TrainingArguments(
+    lr_scheduler_type, lr_scheduler_kwargs = scheduler_type_and_kwargs()
+    training_args = make_training_arguments(
         output_dir=str(args.output_dir),
         learning_rate=args.learning_rate,
-        lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"min_lr": args.min_learning_rate},
+        lr_scheduler_type=lr_scheduler_type,
+        lr_scheduler_kwargs=lr_scheduler_kwargs,
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         num_train_epochs=args.num_train_epochs,
-        evaluation_strategy="steps",
-        eval_steps=100,
+        evaluation_strategy="steps" if dev_ds is not None else "no",
+        eval_steps=100 if dev_ds is not None else None,
         save_steps=100,
         save_total_limit=2,
-        load_best_model_at_end=True,
+        load_best_model_at_end=dev_ds is not None,
         metric_for_best_model="eval_loss",
         greater_is_better=False,
         logging_steps=10,
@@ -151,7 +202,9 @@ def main() -> None:
         train_dataset=train_ds,
         eval_dataset=dev_ds,
         data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model, label_pad_token_id=-100),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience)],
+        callbacks=[
+            EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience)
+        ] if dev_ds is not None else None,
     )
     trainer.train()
     trainer.save_model()

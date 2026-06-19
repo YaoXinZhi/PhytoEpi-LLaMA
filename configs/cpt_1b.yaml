@@ -1,9 +1,10 @@
-model: meta-llama/Meta-Llama-3.1-8B
+model: unsloth/llama-3-8b-bnb-4bit
 token_budget: 1000000000
 plant_per_general: 4
 seed: 3407
 max_seq_length: 4096
 effective_batch_size: 16
+packing: true
 lora:
   r: 128
   alpha: 32
@@ -14,4 +15,3 @@ optimization:
   scheduler: cosine
   warmup_ratio: 0.03
   load_in_4bit: true
-

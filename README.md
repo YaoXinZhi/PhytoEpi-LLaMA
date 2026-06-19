@@ -1,95 +1,127 @@
 # PhytoEpi-LLaMA
 
-PhytoEpi-LLaMA is a lightweight adaptation pipeline for schema-constrained
-relation extraction from plant-health literature. The code in this repository
-contains only the public CPT, IFT, and model-inference components needed to
-reproduce the paper workflow. It does not include private data, checkpoints,
-machine-specific paths, job scheduler scripts, or evaluation outputs.
+Developer: Xinzhi Yao.
 
-## Method Overview
+PhytoEpi-LLaMA is the public reference workflow for continual pre-training
+(CPT), instruction fine-tuning (IFT), schema-constrained inference, dataset
+conversion, and EPOP relation-extraction evaluation for plant-health literature.
 
-The pipeline separates two adaptation goals:
+This repository intentionally does not include private corpora, licensed EPOP
+documents, trained weights, generated outputs, API keys, scheduler scripts, or
+machine-specific paths. All data and model locations are supplied through
+command-line arguments.
 
-1. Continual pre-training (CPT) adapts the base Llama 3.1 8B model to a
-   1B-token mixture of plant-health literature and general-domain text.
-2. Instruction fine-tuning (IFT) aligns the model to the fixed extraction
-   schema and teaches it to emit valid JSON.
-3. Schema-constrained inference generates repeated JSON predictions for EPOP
-   development documents.
+## Paper Alignment
 
-The paper reports that CPT lowers plant-health held-out perplexity, but CPT
-alone weakens JSON reliability. IFT restores schema-conforming output, and the
-complete CPT+IFT pipeline gives the strongest completed extraction result.
+| Paper component | Public implementation | Status |
+| --- | --- | --- |
+| CPT 1B mixed corpus, plant-health/RedPajama 4:1 | `src/cpt/build_mixed_corpus.py` | Included |
+| CPT LoRA training, rank 128, sequence length 4096, packing | `src/cpt/train_cpt_lora.py` | Included |
+| Held-out PPL evaluation | `src/cpt/evaluate_ppl.py` | Included |
+| IFT from EPOP train + DP/BB4 train/dev | `src/data/convert_ie_pairs.py`, `src/ift/train_ift_lora.py` | Included |
+| EPOP dev held out from IFT | `configs/ift_all_ie.yaml` and conversion command | Included |
+| Repeated JSON extraction, 5 repeats, max 8128 tokens | `src/inference/run_schema_extraction.py` | Included |
+| JSON repair/parsing and relation evaluation | `src/phytoepi/json_utils.py`, `src/eval/evaluate_epop_relations.py` | Included |
+| Raw datasets/checkpoints/results | User-provided local paths | Not redistributed |
+
+The default backbone is `unsloth/llama-3-8b-bnb-4bit`, matching the current
+paper description. If you use a locally merged CPT or CPT+IFT checkpoint, pass
+that path with `--model` or `--adapter`.
 
 ## Repository Layout
 
 ```text
-configs/
-  cpt_1b.yaml                 Paper CPT settings
-  ift_all_ie.yaml             Paper IFT settings
-  inference_epop.yaml         Repeated extraction settings
-src/
-  cpt/
-    build_mixed_corpus.py     Clean and mix CPT data
-    train_cpt_lora.py         LoRA CPT training
-    evaluate_ppl.py           Held-out perplexity evaluation
-  ift/
-    train_ift_lora.py         Response-only IFT training
-  inference/
-    run_schema_extraction.py  Repeated JSON extraction
-  phytoepi/
-    prompt.py                 Fixed extraction schema
-    json_utils.py             JSON parsing helpers
+configs/                    Paper-aligned hyperparameter snapshots
+data/examples/              Tiny format-only examples
+scripts/check_public_integrity.py
+src/cpt/                    CPT corpus mixing, training, PPL
+src/data/                   IFT and inference data conversion/audit
+src/eval/                   EPOP relation evaluation
+src/ift/                    Response-only IFT training
+src/inference/              Repeated schema-constrained extraction
+src/phytoepi/               Shared schema, prompt, JSON parsing
 ```
 
 ## Installation
 
-Create an environment with Python 3.10 or newer, install PyTorch for your CUDA
-version, then install the remaining dependencies:
+Create a Python 3.10+ environment, install PyTorch for your CUDA version, then:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-The scripts are path-agnostic. Run them with `PYTHONPATH=src` from the
-repository root.
+Run scripts from the repository root with `PYTHONPATH=src`.
 
 ## Data Formats
 
-CPT input files are JSONL files with one text field:
+CPT JSONL:
 
 ```json
-{"text": "Plant-health or general-domain passage."}
+{"text": "Plant-health or general-domain passage.", "source": "plant"}
 ```
 
-IFT input files are JSONL files with an instruction, an input text, and a gold
-JSON response:
+IFT JSONL:
 
 ```json
 {
-  "instruction": "Extract plant-health entities and relations as JSON.",
+  "instruction": "Extract entities and relationships from the provided text as JSON.",
   "input": "Document text.",
-  "output": {"entities": [], "relationships": []}
+  "output": {"entities": [], "relationships": []},
+  "dataset": "EPOP",
+  "split": "train",
+  "doc_id": "103963"
 }
 ```
 
-Inference input files are JSONL files with document identifiers and text:
+Inference JSONL:
 
 ```json
 {"doc_id": "103963", "text": "Document text."}
 ```
 
+## Dataset Preparation
+
+Convert EPOP/DP/BB4 `.txt` documents and gold `.json` annotations into the IFT
+format. The command below keeps EPOP development held out, while including
+DP/BB4 train and development partitions in the IFT pool, as described in the
+paper.
+
+```bash
+PYTHONPATH=src python src/data/convert_ie_pairs.py \
+  --documents-root corpora/bionlp-st \
+  --annotations-root corpora/json \
+  --datasets EPOP DP BB4 \
+  --splits train dev \
+  --exclude EPOP:dev \
+  --output-jsonl data/ift_all_ie_train.jsonl
+```
+
+Build the EPOP development inference file:
+
+```bash
+PYTHONPATH=src python src/data/build_inference_jsonl.py \
+  --documents-dir data/EPOP_documents/dev \
+  --output-jsonl data/epop_dev_55.jsonl
+```
+
+Audit converted IFT labels:
+
+```bash
+PYTHONPATH=src python src/data/audit_ift_jsonl.py \
+  --jsonl data/ift_all_ie_train.jsonl \
+  --output-tsv outputs/ift_schema_stats.tsv
+```
+
 ## CPT
 
-Build a mixed CPT corpus with the 4:1 plant-health/general-domain schedule used
-in the paper:
+Build the 4:1 mixed CPT corpus:
 
 ```bash
 PYTHONPATH=src python src/cpt/build_mixed_corpus.py \
   --plant-jsonl data/plant_health.jsonl \
-  --general-jsonl data/general_domain.jsonl \
+  --general-jsonl data/redpajama.jsonl \
   --output-jsonl data/cpt_mixed_1b.jsonl \
-  --tokenizer meta-llama/Meta-Llama-3.1-8B \
+  --tokenizer unsloth/llama-3-8b-bnb-4bit \
   --token-budget 1000000000 \
   --plant-per-general 4 \
   --seed 3407
@@ -99,7 +131,7 @@ Train the CPT LoRA adapter:
 
 ```bash
 PYTHONPATH=src python src/cpt/train_cpt_lora.py \
-  --model meta-llama/Meta-Llama-3.1-8B \
+  --model unsloth/llama-3-8b-bnb-4bit \
   --train-jsonl data/cpt_mixed_1b.jsonl \
   --eval-jsonl data/cpt_valid_mixed.jsonl \
   --output-dir outputs/cpt_lora_1b \
@@ -118,7 +150,7 @@ Evaluate held-out perplexity:
 
 ```bash
 PYTHONPATH=src python src/cpt/evaluate_ppl.py \
-  --model meta-llama/Meta-Llama-3.1-8B \
+  --model unsloth/llama-3-8b-bnb-4bit \
   --adapter outputs/cpt_lora_1b \
   --eval-jsonl data/cpt_valid_plant_health.jsonl \
   --bf16
@@ -130,7 +162,7 @@ Train the response-only IFT adapter:
 
 ```bash
 PYTHONPATH=src python src/ift/train_ift_lora.py \
-  --model meta-llama/Meta-Llama-3.1-8B \
+  --model unsloth/llama-3-8b-bnb-4bit \
   --train-jsonl data/ift_all_ie_train.jsonl \
   --output-dir outputs/ift_all_ie_lora \
   --max-seq-length 8192 \
@@ -145,16 +177,17 @@ PYTHONPATH=src python src/ift/train_ift_lora.py \
   --bf16
 ```
 
-For CPT+IFT, start IFT from the CPT-adapted checkpoint or merge the CPT adapter
-into the base checkpoint before running the IFT command.
+For CPT+IFT, start IFT from a CPT-adapted checkpoint or a checkpoint produced
+after merging the CPT adapter into the base model.
 
 ## Inference
 
-Run repeated schema-constrained extraction:
+Run five repeated schema-constrained generations for the 55 EPOP development
+documents:
 
 ```bash
 PYTHONPATH=src python src/inference/run_schema_extraction.py \
-  --model meta-llama/Meta-Llama-3.1-8B \
+  --model unsloth/llama-3-8b-bnb-4bit \
   --adapter outputs/ift_all_ie_lora \
   --documents-jsonl data/epop_dev_55.jsonl \
   --output-jsonl outputs/epop_predictions.jsonl \
@@ -162,18 +195,41 @@ PYTHONPATH=src python src/inference/run_schema_extraction.py \
   --max-new-tokens 8128 \
   --temperature 0.2 \
   --top-p 0.9 \
-  --min-p 0.0 \
   --top-k 50 \
+  --seed 26 \
   --bf16
 ```
 
-The output JSONL contains the raw generated text, a `valid_json` flag, and the
-parsed JSON object when parsing succeeds.
+Each output row contains `doc_id`, `repeat`, raw generated text, `valid_json`,
+and the parsed JSON object when parsing succeeds.
 
-## Notes
+## Evaluation
 
-- All model paths and data paths are command-line arguments.
-- The fixed extraction schema is implemented in `src/phytoepi/prompt.py`.
-- The repository intentionally excludes private corpora and trained weights.
-- The code is intended as a reproducible reference for the paper's CPT, IFT,
-  and inference workflow.
+Evaluate JSON reliability and document-level relation extraction. The default
+repeat policy is `first-valid`, which selects the first parseable generation
+for each document and falls back to the first generation when all repeats are
+malformed.
+
+```bash
+PYTHONPATH=src python src/eval/evaluate_epop_relations.py \
+  --reference-json-dir data/EPOP_json/dev \
+  --prediction-jsonl outputs/epop_predictions.jsonl \
+  --summary-tsv outputs/eval_summary.tsv \
+  --per-doc-tsv outputs/eval_per_doc.tsv \
+  --per-relation-tsv outputs/eval_per_relation.tsv
+```
+
+The summary reports valid JSON count, parseable-only macro P/R/F1, and
+end-to-end macro P/R/F1 where malformed outputs count as extraction failures.
+
+## Security And Release Hygiene
+
+`.env`, `data/`, `outputs/`, and `checkpoints/` are ignored by default. Only the
+small example files under `data/examples/` are tracked. Before publishing, run:
+
+```bash
+python scripts/check_public_integrity.py
+```
+
+The check scans public text files for common API-token patterns, local absolute
+paths, and missing `Developer: Xinzhi Yao` attribution in source files.

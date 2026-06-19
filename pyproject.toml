@@ -1,0 +1,14 @@
+[project]
+name = "phytoepi-llama"
+version = "0.2.0"
+description = "Public CPT, IFT, inference, data conversion, and evaluation workflow for PhytoEpi-LLaMA."
+requires-python = ">=3.10"
+authors = [{ name = "Xinzhi Yao" }]
+readme = "README.md"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

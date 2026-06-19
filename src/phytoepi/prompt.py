@@ -1,16 +1,13 @@
-"""Prompt schema used for plant-health relation extraction."""
+"""Prompt schema used for plant-health relation extraction.
+
+Developer: Xinzhi Yao.
+"""
 
 from __future__ import annotations
 
+from phytoepi.schema import ENTITY_TYPES, RELATION_TYPES
 
-ENTITY_TYPES = ("Pest", "Vector", "Plant", "Disease", "Geographic")
-RELATION_TYPES = (
-    "Located in",
-    "Causes",
-    "Has been found on",
-    "Affects",
-    "Transmits",
-)
+__all__ = ["ENTITY_TYPES", "RELATION_TYPES", "SCHEMA_PROMPT", "build_extraction_prompt"]
 
 SCHEMA_PROMPT = """Identify all named entities and relationships from the text, adhering strictly to the schema below.
 
@@ -24,7 +21,7 @@ Entity types:
 Relationship types and argument constraints:
 - Located in: source type in [Plant, Pest, Disease], target type Geographic.
 - Causes: source type Pest, target type Disease.
-- Has been found on: source type in [Pest, Vector], target type Plant.
+- Have been found on: source type in [Pest, Vector], target type Plant.
 - Affects: source type Disease, target type Plant.
 - Transmits: source type Vector, target type Pest.
 
@@ -52,4 +49,3 @@ def build_extraction_prompt(text: str) -> str:
     """Return the schema-constrained extraction prompt for one document."""
 
     return SCHEMA_PROMPT.format(text=text.strip())
-

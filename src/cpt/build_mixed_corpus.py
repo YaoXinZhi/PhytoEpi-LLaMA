@@ -1,5 +1,7 @@
 """Build the 1B-token mixed corpus used for continual pre-training.
 
+Developer: Xinzhi Yao.
+
 Input files are JSONL files with a text field. The script applies the same
 lightweight filtering to plant-health and general-domain text, alternates the
 cleaned records in an approximate 4:1 ratio, and stops at the requested token
@@ -76,12 +78,18 @@ def split_long_text(text: str, max_chars: int) -> list[str]:
     return [chunk for chunk in chunks if chunk]
 
 
+DEFAULT_MODEL = "unsloth/llama-3-8b-bnb-4bit"
+
+
 def iter_clean_texts(path: Path, text_field: str, args: argparse.Namespace) -> Iterable[str]:
-    with path.open() as handle:
-        for line in handle:
+    with path.open(encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
             if not line.strip():
                 continue
-            record = json.loads(line)
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON in {path} line {line_no}: {exc}") from exc
             text = normalize_text(str(record.get(text_field, "")))
             if not passes_quality(text, args.min_chars, args.max_digit_ratio, args.max_url_ratio):
                 continue
@@ -97,7 +105,7 @@ def main() -> None:
     parser.add_argument("--plant-jsonl", type=Path, required=True)
     parser.add_argument("--general-jsonl", type=Path, required=True)
     parser.add_argument("--output-jsonl", type=Path, required=True)
-    parser.add_argument("--tokenizer", default="meta-llama/Meta-Llama-3.1-8B")
+    parser.add_argument("--tokenizer", default=DEFAULT_MODEL)
     parser.add_argument("--text-field", default="text")
     parser.add_argument("--token-budget", type=int, default=1_000_000_000)
     parser.add_argument("--plant-per-general", type=int, default=4)
@@ -128,7 +136,7 @@ def main() -> None:
 
     total_tokens = 0
     total_records = 0
-    with args.output_jsonl.open("w") as out:
+    with args.output_jsonl.open("w", encoding="utf-8") as out:
         while total_tokens < args.token_budget:
             for source in schedule:
                 text = next(streams[source])

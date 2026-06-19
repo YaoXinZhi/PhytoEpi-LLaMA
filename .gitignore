@@ -4,5 +4,9 @@ __pycache__/
 .env
 .venv/
 outputs/
-data/
+data/*
+!data/README.md
+!data/examples/
+!data/examples/*.jsonl
+!data/examples/*.json
 checkpoints/

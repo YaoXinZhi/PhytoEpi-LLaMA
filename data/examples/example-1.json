@@ -1,0 +1,14 @@
+{
+  "entities": [
+    {"id": "T1", "type": "Pest", "name": "Xylella fastidiosa", "NCBI_Taxonomy": "2371"},
+    {"id": "T2", "type": "Disease", "name": "Pierce's disease"},
+    {"id": "T3", "type": "Plant", "name": "grapevine"},
+    {"id": "T4", "type": "Location", "name": "California", "GeoNames": "5332921"}
+  ],
+  "relationships": [
+    {"source": "T1", "type": "Causes", "target": "T2"},
+    {"source": "T2", "type": "Affects", "target": "T3"},
+    {"source": "T1", "type": "Located in", "target": "T4"}
+  ],
+  "equivalences": []
+}

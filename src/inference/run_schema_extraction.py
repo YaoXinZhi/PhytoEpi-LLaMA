@@ -1,4 +1,7 @@
-"""Run schema-constrained plant-health relation extraction."""
+"""Run schema-constrained plant-health relation extraction.
+
+Developer: Xinzhi Yao.
+"""
 
 from __future__ import annotations
 
@@ -9,19 +12,26 @@ from pathlib import Path
 from phytoepi.json_utils import extract_json_object
 from phytoepi.prompt import build_extraction_prompt
 
+DEFAULT_MODEL = "unsloth/llama-3-8b-bnb-4bit"
+
 
 def read_documents(path: Path, id_field: str, text_field: str):
-    with path.open() as handle:
+    with path.open(encoding="utf-8") as handle:
         for i, line in enumerate(handle):
             if not line.strip():
                 continue
-            record = json.loads(line)
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON in {path} line {i + 1}: {exc}") from exc
+            if text_field not in record:
+                raise ValueError(f"Missing `{text_field}` in {path} line {i + 1}.")
             yield str(record.get(id_field, i)), str(record[text_field])
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--adapter")
     parser.add_argument("--documents-jsonl", type=Path, required=True)
     parser.add_argument("--output-jsonl", type=Path, required=True)
@@ -33,6 +43,7 @@ def main() -> None:
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--min-p", type=float, default=0.0)
     parser.add_argument("--top-k", type=int, default=50)
+    parser.add_argument("--seed", type=int, default=26)
     parser.add_argument("--disable-eos", action="store_true")
     parser.add_argument("--bf16", action="store_true")
     args = parser.parse_args()
@@ -40,8 +51,9 @@ def main() -> None:
     import torch
     from peft import PeftModel
     from tqdm import tqdm
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 
+    set_seed(args.seed)
     dtype = torch.bfloat16 if args.bf16 else torch.float16
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
@@ -52,8 +64,8 @@ def main() -> None:
 
     eos_token_id = None if args.disable_eos else tokenizer.eos_token_id
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
-    with args.output_jsonl.open("w") as out:
-        for doc_id, text in tqdm(list(read_documents(args.documents_jsonl, args.id_field, args.text_field))):
+    with args.output_jsonl.open("w", encoding="utf-8") as out:
+        for doc_id, text in tqdm(read_documents(args.documents_jsonl, args.id_field, args.text_field)):
             prompt = build_extraction_prompt(text)
             inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
             for repeat_id in range(args.repeat):
@@ -61,12 +73,13 @@ def main() -> None:
                     "do_sample": True,
                     "temperature": args.temperature,
                     "top_p": args.top_p,
-                    "min_p": args.min_p,
                     "top_k": args.top_k,
                     "max_new_tokens": args.max_new_tokens,
                     "eos_token_id": eos_token_id,
                     "pad_token_id": tokenizer.eos_token_id,
                 }
+                if args.min_p > 0:
+                    generation_kwargs["min_p"] = args.min_p
                 with torch.no_grad():
                     generated = model.generate(**inputs, **generation_kwargs)
                 output_ids = generated[0, inputs.input_ids.shape[1] :]

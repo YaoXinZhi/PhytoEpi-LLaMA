@@ -1,20 +1,40 @@
-"""Continual pre-training with LoRA adapters."""
+"""Continual pre-training with LoRA adapters.
+
+Developer: Xinzhi Yao.
+"""
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 from pathlib import Path
 
 
-def read_jsonl(path: Path) -> list[dict[str, str]]:
-    with path.open() as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+DEFAULT_MODEL = "unsloth/llama-3-8b-bnb-4bit"
+
+
+def read_jsonl(path: Path, text_field: str) -> list[dict[str, str]]:
+    records: list[dict[str, str]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON in {path} line {line_no}: {exc}") from exc
+            text = str(record.get(text_field, "")).strip()
+            if text:
+                records.append({text_field: text})
+    if not records:
+        raise ValueError(f"No usable `{text_field}` records found in {path}.")
+    return records
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="meta-llama/Meta-Llama-3.1-8B")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--train-jsonl", type=Path, required=True)
     parser.add_argument("--eval-jsonl", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -30,6 +50,7 @@ def main() -> None:
     parser.add_argument("--lora-r", type=int, default=128)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--seed", type=int, default=3407)
+    parser.add_argument("--no-pack", action="store_true")
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--bf16", action="store_true")
     args = parser.parse_args()
@@ -77,6 +98,16 @@ def main() -> None:
             )
             return self.optimizer
 
+    def make_training_arguments(**kwargs):
+        evaluation_strategy = kwargs.pop("evaluation_strategy")
+        strategy_key = (
+            "eval_strategy"
+            if "eval_strategy" in inspect.signature(TrainingArguments.__init__).parameters
+            else "evaluation_strategy"
+        )
+        kwargs[strategy_key] = evaluation_strategy
+        return TrainingArguments(**kwargs)
+
     set_seed(args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
@@ -120,24 +151,58 @@ def main() -> None:
     )
     model = get_peft_model(model, lora_config)
 
-    def tokenize(batch: dict[str, list[str]]) -> dict[str, list[list[int]]]:
-        return tokenizer(
-            batch[args.text_field],
-            truncation=True,
-            max_length=args.max_seq_length,
-            padding=False,
-        )
+    def make_lm_dataset(path: Path):
+        raw_ds = Dataset.from_list(read_jsonl(path, args.text_field))
+        original_columns = raw_ds.column_names
 
-    train_ds = Dataset.from_list(read_jsonl(args.train_jsonl)).map(
-        tokenize, batched=True, remove_columns=None
-    )
+        if args.no_pack:
+            def tokenize(batch: dict[str, list[str]]) -> dict[str, list[list[int]]]:
+                return tokenizer(
+                    batch[args.text_field],
+                    truncation=True,
+                    max_length=args.max_seq_length,
+                    padding=False,
+                )
+
+            return raw_ds.map(tokenize, batched=True, remove_columns=original_columns)
+
+        def tokenize_without_truncation(batch: dict[str, list[str]]) -> dict[str, list[list[int]]]:
+            return tokenizer(batch[args.text_field], add_special_tokens=False)
+
+        def group_texts(examples: dict[str, list[list[int]]]) -> dict[str, list[list[int]]]:
+            token_stream: list[int] = []
+            for input_ids in examples["input_ids"]:
+                token_stream.extend(input_ids)
+                token_stream.append(tokenizer.eos_token_id)
+            total_length = (len(token_stream) // args.max_seq_length) * args.max_seq_length
+            chunks = [
+                token_stream[i : i + args.max_seq_length]
+                for i in range(0, total_length, args.max_seq_length)
+            ]
+            remainder = token_stream[total_length:]
+            if len(remainder) > 1:
+                chunks.append(remainder)
+            return {
+                "input_ids": chunks,
+                "attention_mask": [[1] * len(chunk) for chunk in chunks],
+            }
+
+        tokenized = raw_ds.map(
+            tokenize_without_truncation,
+            batched=True,
+            remove_columns=original_columns,
+        )
+        packed = tokenized.map(group_texts, batched=True)
+        if len(packed) == 0:
+            raise ValueError(f"No packed sequences created from {path}.")
+        return packed
+
+    train_ds = make_lm_dataset(args.train_jsonl)
     eval_ds = None
     if args.eval_jsonl:
-        eval_ds = Dataset.from_list(read_jsonl(args.eval_jsonl)).map(
-            tokenize, batched=True, remove_columns=None
-        )
+        eval_ds = make_lm_dataset(args.eval_jsonl)
 
-    training_args = TrainingArguments(
+    training_args = make_training_arguments(
         output_dir=str(args.output_dir),
         learning_rate=args.learning_rate,
         per_device_train_batch_size=args.per_device_train_batch_size,

@@ -1,4 +1,7 @@
-"""Held-out perplexity evaluation for causal language models."""
+"""Held-out perplexity evaluation for causal language models.
+
+Developer: Xinzhi Yao.
+"""
 
 from __future__ import annotations
 
@@ -7,16 +10,24 @@ import json
 import math
 from pathlib import Path
 
+
+DEFAULT_MODEL = "unsloth/llama-3-8b-bnb-4bit"
+
+
 def iter_texts(path: Path, text_field: str):
-    with path.open() as handle:
-        for line in handle:
+    with path.open(encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
             if line.strip():
-                yield str(json.loads(line).get(text_field, ""))
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Invalid JSON in {path} line {line_no}: {exc}") from exc
+                yield str(record.get(text_field, ""))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--adapter")
     parser.add_argument("--eval-jsonl", type=Path, required=True)
     parser.add_argument("--text-field", default="text")
