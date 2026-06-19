@@ -9,4 +9,6 @@ data/*
 !data/examples/
 !data/examples/*.jsonl
 !data/examples/*.json
+!data/epop/
+!data/epop/**
 checkpoints/

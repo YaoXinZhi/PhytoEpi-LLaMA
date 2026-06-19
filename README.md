@@ -32,7 +32,9 @@ that path with `--model` or `--adapter`.
 
 ```text
 configs/                    Paper-aligned hyperparameter snapshots
+data/epop/                 EPOP public citation and dataset manifest
 data/examples/              Tiny format-only examples
+docs/                       Release notes and dataset documentation
 scripts/check_public_integrity.py
 src/cpt/                    CPT corpus mixing, training, PPL
 src/data/                   IFT and inference data conversion/audit
@@ -78,6 +80,38 @@ Inference JSONL:
 ```json
 {"doc_id": "103963", "text": "Document text."}
 ```
+
+## EPOP Dataset And Citation
+
+EPOP (Epidemiomonitoring of Plants) is the plant-health benchmark used for the
+paper-aligned IFT, inference, and evaluation workflow in this repository. The
+LREC 2026 paper is:
+
+> Claire Nedellec, Marine Courtin, Xinzhi Yao, Marie Grosdidier, Isabelle
+> Pieretti, Sandy Duperier, and Robert Bossy. 2026. EPOP: A Benchmark Corpus
+> for Assessing NLP Models on Structured Information Extraction in Plant
+> Health. In LREC 2026, pp. 1331-1340. DOI:
+> https://doi.org/10.63317/4in2fpefq4pz
+
+Official EPOP resources:
+
+| Resource | DOI / URL |
+| --- | --- |
+| LREC paper | https://lrec.elra.info/lrec2026-main-103 |
+| EPOP documents | https://doi.org/10.57745/YKSEPY |
+| EPOP train/dev annotations | https://doi.org/10.57745/ZDNOGF |
+| Annotation guidelines | https://hal.science/hal-04744299 |
+
+The EPOP documents dataset contains 247 plant-health documents split into
+110 train, 55 development, and 82 test documents. The annotation dataset
+contains the gold train and development labels used for information-extraction
+training and validation.
+
+Because the EPOP documents data-use terms prohibit redistribution or
+unauthorized sharing, raw EPOP text is not committed to GitHub. Public citation,
+URL, file, split, checksum, and local-layout metadata are included in
+`CITATION.cff`, `docs/epop_dataset.md`, `data/epop/manifest.json`, and
+`data/epop/citation.bib`.
 
 ## Dataset Preparation
 
@@ -224,8 +258,9 @@ end-to-end macro P/R/F1 where malformed outputs count as extraction failures.
 
 ## Security And Release Hygiene
 
-`.env`, `data/`, `outputs/`, and `checkpoints/` are ignored by default. Only the
-small example files under `data/examples/` are tracked. Before publishing, run:
+`.env`, raw data, `outputs/`, and `checkpoints/` are ignored by default. Only
+the small example files under `data/examples/` and public metadata under
+`data/epop/` are tracked. Before publishing, run:
 
 ```bash
 python scripts/check_public_integrity.py

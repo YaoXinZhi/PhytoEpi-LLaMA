@@ -1,0 +1,3 @@
+resource	title	version	file	size	md5	doi	landing_page
+documents	Corpus for the epidemiomonitoring of plant	2.0	EPOP_documents.zip	372.8 KB	ea0f9eb2ed864fb2f209b8d62254a461	10.57745/YKSEPY	https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi%3A10.57745%2FYKSEPY
+annotations	Training and development dataset for information extraction in plant epidemiomonitoring	1.0	EPOP_annotations.zip	467.8 KB	3dce6c2f5c31a89331223d1dbfa69c23	10.57745/ZDNOGF	https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi%3A10.57745%2FZDNOGF

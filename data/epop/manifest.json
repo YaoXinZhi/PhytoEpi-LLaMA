@@ -1,0 +1,118 @@
+{
+  "developer": "Xinzhi Yao",
+  "benchmark": {
+    "name": "EPOP",
+    "expanded_name": "Epidemiomonitoring of Plants",
+    "description": "Plant-health benchmark corpus for structured information extraction over phytosanitary monitoring reports.",
+    "entity_scope": [
+      "Plant",
+      "Pest",
+      "Vector",
+      "Disease",
+      "Dissemination Pathway",
+      "species mentions normalized to NCBI Taxonomy",
+      "geographic mentions normalized to GeoNames"
+    ],
+    "relation_scope": [
+      "binary relations",
+      "n-ary event relations",
+      "relations such as Causes and Transmits"
+    ]
+  },
+  "paper": {
+    "title": "EPOP: A Benchmark Corpus for Assessing NLP Models on Structured Information Extraction in Plant Health",
+    "authors": [
+      "Claire Nedellec",
+      "Marine Courtin",
+      "Xinzhi Yao",
+      "Marie Grosdidier",
+      "Isabelle Pieretti",
+      "Sandy Duperier",
+      "Robert Bossy"
+    ],
+    "venue": "Proceedings of the Fifteenth Language Resources and Evaluation Conference (LREC 2026)",
+    "conference": "The Fifteenth Language Resources and Evaluation Conference (LREC 2026)",
+    "location": "Palma, Mallorca, Spain",
+    "dates": "2026-05-11/2026-05-16",
+    "pages": "1331-1340",
+    "doi": "10.63317/4in2fpefq4pz",
+    "doi_url": "https://doi.org/10.63317/4in2fpefq4pz",
+    "url": "https://lrec.elra.info/lrec2026-main-103",
+    "bibkey": "nedellec-etal-2026-epop",
+    "publisher": "European Language Resources Association (ELRA)",
+    "isbn": "978-2-493814-49-4",
+    "issn": "2522-2686"
+  },
+  "datasets": {
+    "documents": {
+      "title": "Corpus for the epidemiomonitoring of plant",
+      "version": "2.0",
+      "authors": [
+        "MaIAGE",
+        "Plateforme ESV"
+      ],
+      "doi": "10.57745/YKSEPY",
+      "doi_url": "https://doi.org/10.57745/YKSEPY",
+      "landing_page": "https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi%3A10.57745%2FYKSEPY",
+      "repository": "Recherche Data Gouv",
+      "dataverse": "Plateforme ESV Dataverse",
+      "file": {
+        "name": "EPOP_documents.zip",
+        "size": "372.8 KB",
+        "md5": "ea0f9eb2ed864fb2f209b8d62254a461",
+        "published": "2026-02-12"
+      },
+      "publication_date": "2025-02-20",
+      "split_counts": {
+        "train": 110,
+        "dev": 55,
+        "test": 82,
+        "total": 247
+      },
+      "license_note": "Use for text mining scientific research; no redistribution or unauthorized sharing of EPOP documents.",
+      "attribution": "EPOP Documents, provided by INRAE and the ESV Platform"
+    },
+    "annotations": {
+      "title": "Training and development dataset for information extraction in plant epidemiomonitoring",
+      "version": "1.0",
+      "authors": [
+        "MaIAGE",
+        "Plateforme ESV"
+      ],
+      "doi": "10.57745/ZDNOGF",
+      "doi_url": "https://doi.org/10.57745/ZDNOGF",
+      "landing_page": "https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi%3A10.57745%2FZDNOGF",
+      "repository": "Recherche Data Gouv",
+      "dataverse": "Plateforme ESV Dataverse",
+      "file": {
+        "name": "EPOP_annotations.zip",
+        "size": "467.8 KB",
+        "md5": "3dce6c2f5c31a89331223d1dbfa69c23",
+        "published": "2025-02-20"
+      },
+      "publication_date": "2025-02-20",
+      "split_counts": {
+        "train": 110,
+        "dev": 55
+      },
+      "description": "Gold train and development annotations with seven entity types, normalization to NCBI Taxonomy and GeoNames, binary relations, ternary relations, and character-offset references."
+    }
+  },
+  "annotation_guidelines": {
+    "title": "Guidelines for the annotation of the corpus Epidemiomonitoring Of Plant (EPOP)",
+    "url": "https://hal.science/hal-04744299v1",
+    "hal_id": "hal-04744299"
+  },
+  "expected_local_paths": {
+    "documents_train": "data/EPOP_documents/train/*.txt",
+    "documents_dev": "data/EPOP_documents/dev/*.txt",
+    "documents_test": "data/EPOP_documents/test/*.txt",
+    "annotations_train": "data/EPOP_json/train/*.json",
+    "annotations_dev": "data/EPOP_json/dev/*.json"
+  },
+  "paper_aligned_usage": {
+    "ift": "Use EPOP train for instruction fine-tuning and exclude EPOP dev.",
+    "inference": "Run schema-constrained inference on the 55 EPOP development documents.",
+    "evaluation": "Evaluate relation extraction against EPOP development gold annotations."
+  }
+}

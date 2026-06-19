@@ -20,6 +20,7 @@ workflow on 2026-06-19.
 | JSON parsing and schema normalization | `src/phytoepi/json_utils.py`, `src/phytoepi/schema.py` |
 | EPOP evaluation | `src/eval/evaluate_epop_relations.py` |
 | Public examples | `data/examples/*.jsonl` |
+| EPOP paper and dataset citation | `CITATION.cff`, `docs/epop_dataset.md`, `data/epop/manifest.json`, `data/epop/citation.bib` |
 
 ## Not Redistributed
 
@@ -27,7 +28,8 @@ Raw EPOP documents, third-party IE corpora, RedPajama passages, PubTator/BioC
 text, model checkpoints, LoRA adapters, generated predictions, and internal
 cluster scripts are intentionally excluded. These assets are either licensed,
 large, private, or machine-specific. The public code takes all such paths as
-arguments.
+arguments. EPOP documents are represented through official DOI/URL metadata
+because their data-use terms prohibit redistribution or unauthorized sharing.
 
 ## Paper Consistency Notes
 

@@ -1,0 +1,62 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the PhytoEpi-LLaMA code and the EPOP resources listed here."
+title: "PhytoEpi-LLaMA"
+type: software
+authors:
+  - family-names: Yao
+    given-names: Xinzhi
+abstract: "Public reference workflow for continual pre-training, instruction fine-tuning, schema-constrained inference, and EPOP relation-extraction evaluation in plant-health literature."
+repository-code: "https://github.com/YaoXinZhi/PhytoEpi-LLaMA"
+url: "https://github.com/YaoXinZhi/PhytoEpi-LLaMA"
+date-released: "2026-06-19"
+keywords:
+  - plant health
+  - information extraction
+  - relation extraction
+  - EPOP
+  - LLaMA
+references:
+  - type: conference-paper
+    title: "EPOP: A Benchmark Corpus for Assessing NLP Models on Structured Information Extraction in Plant Health"
+    authors:
+      - family-names: Nedellec
+        given-names: Claire
+      - family-names: Courtin
+        given-names: Marine
+      - family-names: Yao
+        given-names: Xinzhi
+      - family-names: Grosdidier
+        given-names: Marie
+      - family-names: Pieretti
+        given-names: Isabelle
+      - family-names: Duperier
+        given-names: Sandy
+      - family-names: Bossy
+        given-names: Robert
+    year: 2026
+    collection-title: "Proceedings of the Fifteenth Language Resources and Evaluation Conference (LREC 2026)"
+    conference: "The Fifteenth Language Resources and Evaluation Conference (LREC 2026), Palma, Mallorca, Spain, 11-16 May 2026"
+    publisher:
+      name: "European Language Resources Association (ELRA)"
+    start: 1331
+    end: 1340
+    doi: "10.63317/4in2fpefq4pz"
+    url: "https://lrec.elra.info/lrec2026-main-103"
+  - type: dataset
+    title: "Corpus for the epidemiomonitoring of plant"
+    authors:
+      - name: "MaIAGE"
+      - name: "Plateforme ESV"
+    year: 2025
+    version: "2.0"
+    doi: "10.57745/YKSEPY"
+    url: "https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi%3A10.57745%2FYKSEPY"
+  - type: dataset
+    title: "Training and development dataset for information extraction in plant epidemiomonitoring"
+    authors:
+      - name: "MaIAGE"
+      - name: "Plateforme ESV"
+    year: 2025
+    version: "1.0"
+    doi: "10.57745/ZDNOGF"
+    url: "https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi%3A10.57745%2FZDNOGF"

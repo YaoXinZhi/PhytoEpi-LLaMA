@@ -24,7 +24,20 @@ LOCAL_PATH_MARKERS = (
     "INRAE" + "留学",
 )
 
-TEXT_SUFFIXES = {".md", ".py", ".yaml", ".yml", ".toml", ".txt", ".jsonl", ".gitignore"}
+TEXT_SUFFIXES = {
+    ".bib",
+    ".cff",
+    ".json",
+    ".jsonl",
+    ".md",
+    ".py",
+    ".toml",
+    ".tsv",
+    ".txt",
+    ".yaml",
+    ".yml",
+    ".gitignore",
+}
 
 
 def iter_text_files(root: Path):
